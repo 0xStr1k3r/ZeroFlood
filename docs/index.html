@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ZeroFlood - Documentation</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🛡️</text></svg>">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        :root {
+            --bg-primary: #0c0c0f;
+            --bg-sidebar: #111113;
+            --bg-card: #16161a;
+            --border: #27272a;
+            --text-primary: #fafafa;
+            --text-secondary: #a1a1aa;
+            --text-muted: #71717a;
+            --accent: #6366f1;
+            --accent-hover: #818cf8;
+        }
+        
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-secondary);
+            line-height: 1.7;
+            min-height: 100vh;
+        }
+        
+        /* Layout */
+        .app {
+            display: flex;
+            min-height: 100vh;
+        }
+        
+        /* Sidebar */
+        .sidebar {
+            width: 240px;
+            background: var(--bg-sidebar);
+            border-right: 1px solid var(--border);
+            padding: 32px 20px;
+            position: fixed;
+            height: 100vh;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .logo {
+            font-size: 20px;
+            font-weight: 700;
+            margin-bottom: 40px;
+            padding: 0 8px;
+            color: var(--text-primary);
+            letter-spacing: -0.5px;
+        }
+        .logo span { 
+            color: var(--accent); 
+        }
+        
+        .nav-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 12px;
+            color: var(--text-muted);
+            text-decoration: none;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 500;
+            margin-bottom: 2px;
+            transition: all 0.15s ease;
+        }
+        .nav-item:hover { 
+            background: rgba(255,255,255,0.04); 
+            color: var(--text-secondary); 
+        }
+        .nav-item.active { 
+            background: var(--accent);
+            color: #fff; 
+            box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+        }
+        
+        .nav-icon {
+            width: 18px;
+            text-align: center;
+            font-size: 14px;
+            opacity: 0.8;
+        }
+        
+        .sidebar-footer {
+            margin-top: auto;
+            padding-top: 24px;
+            border-top: 1px solid var(--border);
+        }
+        
+        .version {
+            font-size: 11px;
+            color: var(--text-muted);
+            text-align: center;
+            font-weight: 500;
+            letter-spacing: 0.5px;
+        }
+        
+        /* Main Content */
+        .main {
+            flex: 1;
+            margin-left: 240px;
+            padding: 48px;
+            display: flex;
+            justify-content: center;
+        }
+        
+        .content {
+            width: 100%;
+            max-width: 720px;
+        }
+        
+        /* Markdown Styles */
+        .md h1 {
+            font-size: 28px;
+            font-weight: 700;
+            color: var(--text-primary);
+            margin: 0 0 24px 0;
+            padding-bottom: 20px;
+            border-bottom: 1px solid var(--border);
+            letter-spacing: -0.5px;
+        }
+        
+        .md h2 {
+            font-size: 20px;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin: 36px 0 16px 0;
+            letter-spacing: -0.3px;
+        }
+        
+        .md h3 {
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin: 28px 0 12px 0;
+        }
+        
+        .md p {
+            color: var(--text-secondary);
+            margin: 14px 0;
+            font-size: 15px;
+        }
+        
+        .md a {
+            color: var(--accent);
+            text-decoration: none;
+            font-weight: 500;
+        }
+        .md a:hover { color: var(--accent-hover); }
+        
+        .md strong { 
+            color: var(--text-primary); 
+            font-weight: 600;
+        }
+        
+        .md code {
+            font-family: 'JetBrains Mono', monospace;
+            background: rgba(255,255,255,0.06);
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-size: 13px;
+            color: #22d3ee;
+            font-weight: 400;
+        }
+        
+        .md pre {
+            background: var(--bg-card);
+            padding: 16px;
+            border-radius: 10px;
+            overflow-x: auto;
+            margin: 16px 0;
+            border: 1px solid var(--border);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+        }
+        
+        .md pre code {
+            background: none;
+            padding: 0;
+            font-size: 12.5px;
+            line-height: 1.65;
+            color: #d4d4d8;
+        }
+        
+        .md ul, .md ol {
+            margin: 14px 0;
+            padding-left: 20px;
+            color: var(--text-secondary);
+        }
+        
+        .md li { 
+            margin: 6px 0;
+            font-size: 14px;
+        }
+        
+        .md li::marker { color: var(--accent); }
+        
+        .md table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 16px 0;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            overflow: hidden;
+        }
+        
+        .md th {
+            background: var(--bg-card);
+            padding: 12px 14px;
+            text-align: left;
+            font-weight: 600;
+            font-size: 12.5px;
+            color: var(--text-primary);
+            border-bottom: 1px solid var(--border);
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+        }
+        
+        .md td {
+            padding: 11px 14px;
+            border-bottom: 1px solid var(--border);
+            font-size: 13px;
+        }
+        
+        .md tr:last-child td { border-bottom: none; }
+        
+        .md tr:hover td { background: rgba(255,255,255,0.02); }
+        
+        .md hr {
+            border: none;
+            height: 1px;
+            background: var(--border);
+            margin: 32px 0;
+        }
+        
+        .md blockquote {
+            border-left: 3px solid var(--accent);
+            padding-left: 16px;
+            margin: 16px 0;
+            color: var(--text-muted);
+            font-style: italic;
+        }
+        
+        .loading {
+            color: var(--text-muted);
+            font-size: 15px;
+        }
+        
+        @media (max-width: 900px) {
+            .sidebar { width: 200px; }
+            .main { margin-left: 200px; padding: 32px; }
+        }
+        
+        @media (max-width: 640px) {
+            .sidebar { display: none; }
+            .main { margin-left: 0; padding: 24px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="app">
+        <nav class="sidebar" id="sidebar">
+            <div class="logo">Zero<span>Flood</span></div>
+            <div id="nav-container"></div>
+            <div class="sidebar-footer">
+                <div class="version">v1.0.0</div>
+            </div>
+        </nav>
+        
+        <main class="main">
+            <div class="content">
+                <div class="md" id="content"><span class="loading">Loading...</span></div>
+            </div>
+        </main>
+    </div>
+    
+    <script>
+        const navItems = [
+            { file: 'home.md', icon: '⌂', label: 'Home' },
+            { file: 'installation.md', icon: '↓', label: 'Installation' },
+            { file: 'quickstart.md', icon: '▶', label: 'Quick Start' },
+            { file: 'architecture.md', icon: '◈', label: 'Architecture' },
+            { file: 'detection.md', icon: '◎', label: 'Detection' },
+            { file: 'mitigation.md', icon: '◆', label: 'Mitigation' },
+            { file: 'llm.md', icon: '◇', label: 'LLM' },
+            { file: 'api.md', icon: '⇄', label: 'API' },
+            { file: 'configuration.md', icon: '☰', label: 'Config' },
+            { file: 'troubleshooting.md', icon: '⚠', label: 'Troubleshoot' }
+        ];
+
+        const navContainer = document.getElementById('nav-container');
+        const content = document.getElementById('content');
+
+        // Build nav
+        navItems.forEach((item, i) => {
+            const a = document.createElement('a');
+            a.href = '#' + item.file;
+            a.className = 'nav-item' + (i === 0 ? ' active' : '');
+            a.innerHTML = `<span class="nav-icon">${item.icon}</span>${item.label}`;
+            a.onclick = (e) => {
+                e.preventDefault();
+                loadFile(item.file);
+                document.querySelectorAll('.nav-item').forEach(x => x.className = 'nav-item');
+                a.className = 'nav-item active';
+            };
+            navContainer.appendChild(a);
+        });
+
+        function parseMd(text) {
+            let html = text;
+            
+            html = html.replace(/^#### (.*$)/gm, '<h3>$1</h3>');
+            html = html.replace(/^### (.*$)/gm, '<h2>$1</h2>');
+            html = html.replace(/^## (.*$)/gm, '<h1>$1</h1>');
+            
+            html = html.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+            html = html.replace(/\*(.*?)\*/g, '<em>$1</em>');
+            
+            html = html.replace(/```(\w+)?\n([\s\S]*?)```/g, '<pre><code>$2</code></pre>');
+            html = html.replace(/`([^`]+)`/g, '<code>$1</code>');
+            
+            html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2">$1</a>');
+            html = html.replace(/^---$/gm, '<hr>');
+            
+            // Tables - filter out separator lines
+            const lines = html.split('\n');
+            let inTable = false;
+            let result = [];
+            
+            for (let i = 0; i < lines.length; i++) {
+                const line = lines[i];
+                // Skip separator lines like |---|---|---| or | --- | --- |
+                // Match lines that have only dashes, colons, spaces, and pipes
+                if (line.trim().match(/^[\|\s\-:]+$/)) {
+                    continue;
+                }
+                
+                if (line.includes('|')) {
+                    if (!inTable) {
+                        inTable = true;
+                        result.push('<table>');
+                        const heads = line.split('|').filter(c => c.trim());
+                        result.push('<thead><tr>');
+                        heads.forEach(h => result.push('<th>' + h.trim() + '</th>'));
+                        result.push('</tr></thead><tbody>');
+                    } else {
+                        const cells = line.split('|').filter(c => c.trim());
+                        result.push('<tr>');
+                        cells.forEach(c => result.push('<td>' + c.trim() + '</td>'));
+                        result.push('</tr>');
+                    }
+                } else {
+                    if (inTable) {
+                        result.push('</tbody></table>');
+                        inTable = false;
+                    }
+                    result.push(line);
+                }
+            }
+            if (inTable) result.push('</tbody></table>');
+            html = result.join('\n');
+            
+            html = html.replace(/^[\-\*] (.*$)/gm, '<li>$1</li>');
+            html = html.replace(/(<li>.*<\/li>\n?)+/g, '<ul>$&</ul>');
+            
+            html = html.split('\n\n').map(p => {
+                p = p.trim();
+                if (!p) return '';
+                if (p.startsWith('<')) return p;
+                return '<p>' + p.replace(/\n/g, '<br>') + '</p>';
+            }).join('\n');
+            
+            html = html.replace(/<p><\/p>/g, '');
+            
+            return html;
+        }
+
+        function loadFile(file) {
+            content.innerHTML = '<span class="loading">Loading...</span>';
+            fetch(file)
+                .then(r => r.text())
+                .then(t => content.innerHTML = parseMd(t))
+                .catch(e => content.innerHTML = '<p>Error: ' + e.message + '</p>');
+        }
+
+        const hash = window.location.hash.slice(1);
+        loadFile(hash || 'home.md');
+    </script>
+</body>
+</html>
