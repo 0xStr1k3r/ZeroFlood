@@ -25,13 +25,37 @@ else
     echo -e "${GREEN}[✓] libpcap-dev installed${NC}"
 fi
 
-# 2. Build Go binary
-echo -e "${YELLOW}[2/4] Building sensor binary...${NC}"
+# 2. IDS Selection
+echo -e "${YELLOW}[2/5] Optional IDS Integration...${NC}"
+echo -e "ZeroFlood supports Suricata or Snort for deep packet inspection."
+echo -e "1) Install Suricata (Recommended)"
+echo -e "2) Install Snort"
+echo -e "3) Skip IDS (Volumetric detection only)"
+read -p "Select option [1-3] (Default: 3): " ids_choice
+
+if [ "$ids_choice" == "1" ]; then
+    echo -e "${CYAN}[*] Installing Suricata...${NC}"
+    sudo apt-get install -y suricata
+    sudo systemctl stop suricata 2>/dev/null || true
+    sudo systemctl disable suricata 2>/dev/null || true
+    echo -e "${GREEN}[✓] Suricata installed (ZeroFlood will manage the process)${NC}"
+elif [ "$ids_choice" == "2" ]; then
+    echo -e "${CYAN}[*] Installing Snort...${NC}"
+    sudo DEBIAN_FRONTEND=noninteractive apt-get install -y snort
+    sudo systemctl stop snort 2>/dev/null || true
+    sudo systemctl disable snort 2>/dev/null || true
+    echo -e "${GREEN}[✓] Snort installed (ZeroFlood will manage the process)${NC}"
+else
+    echo -e "${GREEN}[✓] Skipping IDS installation${NC}"
+fi
+
+# 3. Build Go binary
+echo -e "${YELLOW}[3/5] Building sensor binary...${NC}"
 go build -buildvcs=false -o bin/sensor ./cmd/sensor
 echo -e "${GREEN}[✓] bin/sensor built${NC}"
 
-# 3. Install Node dependencies
-echo -e "${YELLOW}[3/4] Installing frontend dependencies...${NC}"
+# 4. Install Node dependencies
+echo -e "${YELLOW}[4/5] Installing frontend dependencies...${NC}"
 cd web
 if [ ! -d node_modules ]; then
     npm install
@@ -39,8 +63,8 @@ fi
 echo -e "${GREEN}[✓] Frontend dependencies ready${NC}"
 cd ..
 
-# 4. Detect network interface
-echo -e "${YELLOW}[4/4] Detecting network interfaces...${NC}"
+# 5. Detect network interface
+echo -e "${YELLOW}[5/5] Detecting network interfaces...${NC}"
 IFACES=$(ip link show | awk '/^[0-9]+:/{gsub(":",""); print $2}' | grep -v "lo")
 echo -e "${GREEN}[✓] Available interfaces: $IFACES${NC}"
 
