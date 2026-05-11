@@ -124,7 +124,7 @@ func (e *Engine) addRules(ip string) error {
 	}
 
 	if len(errors) > 0 {
-		return fmt.Errorf(strings.Join(errors, "; "))
+		return fmt.Errorf("%s", strings.Join(errors, "; "))
 	}
 	log.Printf("[MITIGATION] iptables rules added for %s (INPUT+FORWARD)", ip)
 	return nil

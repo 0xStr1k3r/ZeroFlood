@@ -49,7 +49,7 @@ LOG="$PROJECT_DIR/zero.log"
 # Build first if binary is missing or source is newer
 if [ ! -f "./bin/sensor" ] || find ./internal ./cmd -name "*.go" -newer ./bin/sensor | grep -q .; then
     echo -e "${YELLOW}[*] Building sensor binary...${NC}"
-    go build -o bin/sensor ./cmd/sensor 2>&1
+    go build -buildvcs=false -o bin/sensor ./cmd/sensor 2>&1
     echo -e "${GREEN}[✓] Build OK${NC}"
 fi
 

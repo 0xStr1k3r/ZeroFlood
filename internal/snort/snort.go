@@ -55,12 +55,13 @@ type SnortAlert struct {
 
 // Engine manages the IDS integration.
 type Engine struct {
-	mu      sync.RWMutex
-	config  *SnortConfig
-	stats   *SnortStats
-	alerts  []SnortAlert
-	running bool
-	stopCh  chan struct{}
+	mu        sync.RWMutex
+	config    *SnortConfig
+	stats     *SnortStats
+	alerts    []SnortAlert
+	AlertChan chan SnortAlert
+	running   bool
+	stopCh    chan struct{}
 }
 
 // New creates an Engine. It does not start reading until Start() is called.
@@ -68,12 +69,13 @@ func New(config *SnortConfig) *Engine {
 	return &Engine{
 		config: config,
 		stats: &SnortStats{
-			Enabled:    config.Enabled,
-			Status:     "stopped",
-			Engine:     "none",
+			Enabled:     config.Enabled,
+			Status:      "stopped",
+			Engine:      "none",
 			RulesLoaded: 0,
 		},
-		alerts: make([]SnortAlert, 0),
+		alerts:    make([]SnortAlert, 0),
+		AlertChan: make(chan SnortAlert, 100),
 	}
 }
 
@@ -140,6 +142,11 @@ func countRules(rulesPath string) int {
 	return count
 }
 
+func isProcessRunning(name string) bool {
+	err := exec.Command("pgrep", "-x", name).Run()
+	return err == nil
+}
+
 // Start begins tailing the IDS log file. It is idempotent.
 func (e *Engine) Start() error {
 	e.mu.Lock()
@@ -150,10 +157,23 @@ func (e *Engine) Start() error {
 	}
 
 	logFile, engine, err := detectLogFile(e.config)
-	if err != nil {
-		// Try starting Suricata if not running
+	
+	// If log file doesn't exist OR the process isn't actually running, we need to start it
+	if err != nil || (!isProcessRunning("suricata") && !isProcessRunning("snort")) {
 		if _, serr := exec.LookPath("suricata"); serr == nil {
-			e.stats.Status = "suricata_not_running"
+			log.Printf("[SNORT] Starting Suricata daemon on interface %s...", e.config.Interface)
+			// Kill any stale process first
+			exec.Command("pkill", "-x", "suricata").Run()
+			
+			// Start suricata in daemon mode on the specific interface
+			cmd := exec.Command("suricata", "-D", "-c", "/etc/suricata/suricata.yaml", "-i", e.config.Interface)
+			if out, startErr := cmd.CombinedOutput(); startErr != nil {
+				log.Printf("[SNORT] Failed to start Suricata: %v, output: %s", startErr, string(out))
+				e.stats.Status = "start_failed"
+				return fmt.Errorf("failed to start suricata: %w", startErr)
+			}
+
+			e.stats.Status = "starting_suricata"
 			e.stats.Engine = "suricata"
 			e.stats.Enabled = true
 			e.running = true
@@ -161,9 +181,10 @@ func (e *Engine) Start() error {
 			go e.watchForLogFile()
 			return nil
 		}
-		e.stats.Status = fmt.Sprintf("no_log: %v", err)
+		
+		e.stats.Status = fmt.Sprintf("no_log_or_process: %v", err)
 		e.stats.Enabled = false
-		return err
+		return fmt.Errorf("no IDS log and suricata not found")
 	}
 
 	e.stats.Engine = engine
@@ -387,7 +408,7 @@ func parseSnortFastLog(line string) *SnortAlert {
 	return alert
 }
 
-// Stop halts log tailing.
+// Stop halts log tailing and kills the IDS process.
 func (e *Engine) Stop() error {
 	e.mu.Lock()
 	defer e.mu.Unlock()
@@ -398,6 +419,16 @@ func (e *Engine) Stop() error {
 	e.running = false
 	e.stats.Status = "stopped"
 	e.stats.Enabled = false
+
+	// Actually stop the IDS process so it's fully disabled
+	if e.stats.Engine == "suricata" || isProcessRunning("suricata") {
+		log.Printf("[SNORT] Stopping Suricata process...")
+		exec.Command("pkill", "-x", "suricata").Run()
+	} else if e.stats.Engine == "snort" || isProcessRunning("snort") {
+		log.Printf("[SNORT] Stopping Snort process...")
+		exec.Command("pkill", "-x", "snort").Run()
+	}
+
 	return nil
 }
 
@@ -432,12 +463,27 @@ func (e *Engine) GetAlerts() []SnortAlert {
 
 func (e *Engine) AddAlert(alert SnortAlert) {
 	e.mu.Lock()
-	e.alerts = append(e.alerts, alert)
-	if len(e.alerts) > 200 {
-		e.alerts = e.alerts[len(e.alerts)-200:]
+	var found bool
+	for i := len(e.alerts) - 1; i >= 0; i-- {
+		if e.alerts[i].SrcIP == alert.SrcIP && e.alerts[i].Msg == alert.Msg {
+			e.alerts[i].Timestamp = time.Now()
+			found = true
+			break
+		}
 	}
-	e.stats.Alerts = len(e.alerts)
+	if !found {
+		e.alerts = append(e.alerts, alert)
+		if len(e.alerts) > 200 {
+			e.alerts = e.alerts[len(e.alerts)-200:]
+		}
+		e.stats.Alerts = len(e.alerts)
+	}
 	e.mu.Unlock()
+
+	select {
+	case e.AlertChan <- alert:
+	default:
+	}
 }
 
 func (e *Engine) Toggle(enabled bool) error {

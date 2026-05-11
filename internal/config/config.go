@@ -81,7 +81,7 @@ func Load() *Config {
 			},
 		},
 		Mitigation: MitigationConfig{
-			AutoBlockEnabled: true,
+			AutoBlockEnabled: false,
 			BlockDuration:    5 * time.Minute,
 			RateLimitPps:     100,
 		},

@@ -55,7 +55,7 @@ func New(captureEngine *capture.Engine, detector *detection.Detector, llmDetecto
 	}
 
 	snortCfg := &snort.SnortConfig{
-		Enabled:   true,
+		Enabled:   false,
 		Interface: ifaceName,
 		RulesPath: "/etc/snort/rules",
 	}
@@ -78,12 +78,8 @@ func New(captureEngine *capture.Engine, detector *detection.Detector, llmDetecto
 	go server.processDetectorAlerts()
 	go server.processLLMDetection()
 
-	// Auto-start Suricata/Snort log integration
-	if err := snortEng.Start(); err != nil {
-		fmt.Printf("[SNORT] IDS integration start warning: %v\n", err)
-	} else {
-		go server.processSnortAlerts()
-	}
+	// Note: Snort starts disabled. The user turns it on via the GUI toggle,
+	// which will invoke handleSnortToggle -> snortEng.Start() and launch processSnortAlerts.
 
 	return server
 }
@@ -120,43 +116,31 @@ func (s *Server) processDetectorAlerts() {
 	}
 }
 
-// processSnortAlerts polls the Snort/Suricata engine for new alerts every second
+// processSnortAlerts reads from the Snort/Suricata engine channel
 // and feeds them into the main alert list + auto-mitigation pipeline.
 func (s *Server) processSnortAlerts() {
-	var lastCount int
-	ticker := time.NewTicker(1 * time.Second)
-	defer ticker.Stop()
-	for {
-		<-ticker.C
-		snortAlerts := s.snortEngine.GetAlerts()
-		if len(snortAlerts) <= lastCount {
-			continue
+	for sa := range s.snortEngine.AlertChan {
+		sev := "medium"
+		switch sa.Severity {
+		case 1:
+			sev = "critical"
+		case 2:
+			sev = "high"
+		case 3:
+			sev = "medium"
 		}
-		newAlerts := snortAlerts[lastCount:]
-		lastCount = len(snortAlerts)
-		for _, sa := range newAlerts {
-			sev := "medium"
-			switch sa.Severity {
-			case 1:
-				sev = "critical"
-			case 2:
-				sev = "high"
-			case 3:
-				sev = "medium"
-			}
-			alert := models.Alert{
-				ID:         fmt.Sprintf("ids-%d", sa.SID),
-				Timestamp:  sa.Timestamp,
-				Severity:   sev,
-				AttackType: fmt.Sprintf("IDS: %s", sa.Classification),
-				SourceIP:   sa.SrcIP,
-				DestIP:     sa.DstIP,
-				Message:    sa.Msg,
-				Count:      1,
-			}
-			s.AddAlert(alert)
-			s.autoMitigate(alert)
+		alert := models.Alert{
+			ID:         fmt.Sprintf("ids-%d", sa.SID),
+			Timestamp:  sa.Timestamp,
+			Severity:   sev,
+			AttackType: fmt.Sprintf("IDS: %s", sa.Classification),
+			SourceIP:   sa.SrcIP,
+			DestIP:     sa.DstIP,
+			Message:    sa.Msg,
+			Count:      1,
 		}
+		s.AddAlert(alert)
+		s.autoMitigate(alert)
 	}
 }
 
@@ -347,12 +331,34 @@ func (s *Server) handleUnblockIP(c *gin.Context) {
 }
 
 func (s *Server) AddAlert(alert models.Alert) {
-	s.mu.Lock()
-	s.alerts = append(s.alerts, alert)
-	if len(s.alerts) > 100 {
-		s.alerts = s.alerts[len(s.alerts)-100:]
+	// If the source IP is already blocked, ignore the alert
+	if alert.SourceIP != "multiple" && alert.SourceIP != "LLM Analysis" && alert.SourceIP != "" {
+		if s.mitigationEngine != nil && s.mitigationEngine.IsIPBlocked(alert.SourceIP) {
+			return
+		}
 	}
-	s.mu.Unlock()
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	var found bool
+	if alert.SourceIP != "multiple" && alert.SourceIP != "LLM Analysis" && alert.SourceIP != "" {
+		for i := len(s.alerts) - 1; i >= 0; i-- {
+			if s.alerts[i].SourceIP == alert.SourceIP && s.alerts[i].AttackType == alert.AttackType {
+				s.alerts[i].Count += alert.Count
+				s.alerts[i].Timestamp = time.Now()
+				found = true
+				break
+			}
+		}
+	}
+
+	if !found {
+		s.alerts = append(s.alerts, alert)
+		if len(s.alerts) > 100 {
+			s.alerts = s.alerts[len(s.alerts)-100:]
+		}
+	}
 }
 
 func (s *Server) AddBlockedIP(ip models.BlockedIP) {

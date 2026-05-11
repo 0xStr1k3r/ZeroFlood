@@ -35,6 +35,7 @@ function App() {
   const [mitigation, setMitigation] = useState(null)
   const [detection, setDetection] = useState(null)
   const [snort, setSnort] = useState(null)
+  const [snortAlerts, setSnortAlerts] = useState([])
   const [activeTab, setActiveTab] = useState('overview')
   const [timeRange, setTimeRange] = useState(30)
   const [darkMode, setDarkMode] = useState(true)
@@ -69,8 +70,10 @@ function App() {
       axios.get(`${API_URL}/status`),
       axios.get(`${API_URL}/mitigation`),
       axios.get(`${API_URL}/detection`),
+      axios.get(`${API_URL}/snort`),
     ]
-    if (snort?.enabled) requests.push(axios.get(`${API_URL}/snort`))
+    // Fetch IDS alerts if active
+    if (snort?.enabled) requests.push(axios.get(`${API_URL}/snort/alerts`))
 
     const results = await Promise.allSettled(requests)
     const statsResult = results[0]
@@ -101,16 +104,20 @@ function App() {
     if (statusResult.status === 'fulfilled') setStatus(statusResult.value.data)
     if (results[2]?.status === 'fulfilled') setMitigation(results[2].value.data)
     if (results[3]?.status === 'fulfilled') setDetection(results[3].value.data)
-    if (snort?.enabled && results[4]?.status === 'fulfilled') setSnort(results[4].value.data)
+    if (results[4]?.status === 'fulfilled') setSnort(results[4].value.data)
+    if (snort?.enabled && results[5]?.status === 'fulfilled') {
+      setSnortAlerts(results[5].value.data?.alerts || [])
+    }
   }
 
   const toggleSnort = async () => {
     const newState = !snort?.enabled
     try {
-      await axios.post(`${API_URL}/snort/toggle`, { enabled: newState })
-      setSnort({ ...snort, enabled: newState })
+      const res = await axios.post(`${API_URL}/snort/toggle`, { enabled: newState })
+      addToast(newState ? `🦅 IDS Enabled (${res.data?.engine || 'snort'})` : '🦅 IDS Disabled', newState ? 'success' : 'warning')
+      fetchData()
     } catch (err) {
-      console.error('Snort toggle error:', err)
+      addToast(`IDS toggle failed: ${err.response?.data?.error || err.message}`, 'error')
     }
   }
 
@@ -191,16 +198,47 @@ function App() {
     </div>
   )
 
-  const renderOverview = () => (
+  const renderOverview = () => {
+    // Calculate Threat Level
+    let threatLevel = 'SAFE'
+    let threatColor = COLORS.success
+    let threatMsg = 'Normal traffic baseline'
+    
+    if (alerts.length > 5 || (stats?.stats?.PPS > 10000)) {
+      threatLevel = 'CRITICAL'
+      threatColor = COLORS.danger
+      threatMsg = 'Active attack detected'
+    } else if (alerts.length > 0 || (stats?.stats?.SynCount > 1000)) {
+      threatLevel = 'ELEVATED'
+      threatColor = COLORS.warning
+      threatMsg = 'Anomalous patterns observed'
+    }
+
+    const totalProtos = (stats?.stats?.TCP || 0) + (stats?.stats?.UDP || 0) + (stats?.stats?.ICMP || 0) || 1
+    const getPercent = (val) => ((val / totalProtos) * 100).toFixed(1)
+
+    return (
     <>
-      {/* Animated Stats Cards */}
-      <div style={styles.statsGrid}>
-        {renderGlowCard('📊', 'Packets/sec', formatNumber(stats?.stats?.PPS), 'realtime', COLORS.primary)}
-        {renderGlowCard('⚡', 'Bandwidth', `${((stats?.stats?.BPS || 0) / 1024 / 1024).toFixed(2)} MB/s`, 'current', COLORS.success)}
-        {renderGlowCard('🚨', 'Alerts', alerts.length, 'active', alerts.length > 0 ? COLORS.danger : COLORS.success)}
-        {renderGlowCard('🛡️', 'Blocked', blocked.length, 'ips', COLORS.warning)}
-        {renderGlowCard('🔒', 'SYN/ACK', (stats?.stats?.SynAckRatio || 0).toFixed(2), 'ratio', COLORS.purple)}
-        {renderGlowCard('📡', 'Total Packets', formatNumber(stats?.stats?.TotalPackets), 'lifetime', COLORS.cyan)}
+      {/* Pro Dashboard Header */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '20px', marginBottom: '25px' }}>
+        <div style={{
+          background: `linear-gradient(135deg, ${COLORS.darker} 0%, ${COLORS.dark} 100%)`,
+          border: `1px solid ${threatColor}40`,
+          borderRadius: '16px', padding: '24px',
+          boxShadow: `0 8px 32px ${threatColor}15`,
+          display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center'
+        }}>
+          <span style={{ fontSize: '14px', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '1px', fontWeight: '700' }}>System Threat Level</span>
+          <span style={{ fontSize: '36px', fontWeight: '800', color: threatColor, textShadow: `0 0 20px ${threatColor}60`, margin: '10px 0' }}>{threatLevel}</span>
+          <span style={{ fontSize: '13px', color: '#64748b' }}>{threatMsg}</span>
+        </div>
+
+        <div style={styles.statsGrid}>
+          {renderGlowCard('📊', 'Throughput', formatNumber(stats?.stats?.PPS) + ' PPS', 'packets / sec', COLORS.primary)}
+          {renderGlowCard('⚡', 'Bandwidth', `${((stats?.stats?.BPS || 0) / 1024 / 1024).toFixed(2)} MB/s`, 'current rate', COLORS.success)}
+          {renderGlowCard('🚨', 'Active Alerts', alerts.length, 'unresolved threats', alerts.length > 0 ? COLORS.danger : COLORS.success)}
+          {renderGlowCard('🛡️', 'Mitigated', blocked.length, 'ips blocked', COLORS.warning)}
+        </div>
       </div>
 
       {/* Main Charts */}
@@ -245,28 +283,41 @@ function App() {
           </ResponsiveContainer>
         </div>
 
-        {/* Protocol Distribution */}
+        {/* Protocol Distribution Pro Bars */}
         <div style={styles.chartCard}>
-          <h3 style={styles.chartTitle}>🔌 Protocol Distribution</h3>
-          <ResponsiveContainer width="100%" height={280}>
-            <PieChart>
-              <Pie
-                data={protocolData}
-                cx="50%"
-                cy="50%"
-                innerRadius={70}
-                outerRadius={100}
-                paddingAngle={4}
-                dataKey="value"
-              >
-                {protocolData.map((entry, index) => (
-                  <Cell key={`cell-${index}`} fill={[COLORS.primary, COLORS.success, COLORS.warning, COLORS.danger][index]} />
-                ))}
-              </Pie>
-              <Tooltip contentStyle={{ background: COLORS.darker, border: '1px solid #334155', borderRadius: '8px' }} />
-              <Legend />
-            </PieChart>
-          </ResponsiveContainer>
+          <h3 style={styles.chartTitle}>🔌 Protocol Breakdown</h3>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', marginTop: '20px' }}>
+            <div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', fontSize: '13px', fontWeight: '600' }}>
+                <span style={{ color: COLORS.primary }}>TCP Traffic</span>
+                <span>{getPercent(stats?.stats?.TCP || 0)}%</span>
+              </div>
+              <div style={{ width: '100%', height: '8px', background: '#1e293b', borderRadius: '4px', overflow: 'hidden' }}>
+                <div style={{ width: `${getPercent(stats?.stats?.TCP || 0)}%`, height: '100%', background: COLORS.primary, transition: 'width 0.5s ease' }}></div>
+              </div>
+            </div>
+            <div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', fontSize: '13px', fontWeight: '600' }}>
+                <span style={{ color: COLORS.success }}>UDP Traffic</span>
+                <span>{getPercent(stats?.stats?.UDP || 0)}%</span>
+              </div>
+              <div style={{ width: '100%', height: '8px', background: '#1e293b', borderRadius: '4px', overflow: 'hidden' }}>
+                <div style={{ width: `${getPercent(stats?.stats?.UDP || 0)}%`, height: '100%', background: COLORS.success, transition: 'width 0.5s ease' }}></div>
+              </div>
+            </div>
+            <div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', fontSize: '13px', fontWeight: '600' }}>
+                <span style={{ color: COLORS.warning }}>ICMP Traffic</span>
+                <span>{getPercent(stats?.stats?.ICMP || 0)}%</span>
+              </div>
+              <div style={{ width: '100%', height: '8px', background: '#1e293b', borderRadius: '4px', overflow: 'hidden' }}>
+                <div style={{ width: `${getPercent(stats?.stats?.ICMP || 0)}%`, height: '100%', background: COLORS.warning, transition: 'width 0.5s ease' }}></div>
+              </div>
+            </div>
+            <div style={{ marginTop: 'auto', padding: '15px', background: 'rgba(255,255,255,0.02)', borderRadius: '8px', border: '1px solid #334155' }}>
+               <span style={{ fontSize: '12px', color: '#94a3b8' }}>SYN/ACK Ratio: <strong style={{ color: COLORS.purple }}>{(stats?.stats?.SynAckRatio || 0).toFixed(2)}</strong></span>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -309,6 +360,7 @@ function App() {
       </div>
     </>
   )
+}
 
   const renderAlerts = () => (
     <div style={styles.section}>
@@ -539,81 +591,146 @@ function App() {
     </div>
   )
 
+  const getIDSStatusColor = (s) => {
+    if (s === 'running') return COLORS.success
+    if (s === 'stopped') return COLORS.danger
+    return COLORS.warning
+  }
+
+  const getIDSSeverityColor = (sev) => {
+    if (sev === 1) return COLORS.danger
+    if (sev === 2) return COLORS.warning
+    return COLORS.primary
+  }
+
   const renderSnort = () => (
     <div style={styles.section}>
+      {/* Header with toggle */}
       <div style={styles.sectionHeader}>
-        <h2 style={styles.sectionTitle}>🦅 Snort IDS Integration</h2>
-        <button 
+        <h2 style={styles.sectionTitle}>🦅 IDS Integration {snort?.engine ? `(${snort.engine})` : ''}</h2>
+        <button
           onClick={toggleSnort}
           style={{
             ...styles.snortToggle,
-            background: snort?.enabled ? COLORS.success : COLORS.danger
+            background: snort?.enabled
+              ? `linear-gradient(135deg, ${COLORS.success}, #059669)`
+              : `linear-gradient(135deg, ${COLORS.danger}, #dc2626)`
           }}
         >
           {snort?.enabled ? '🟢 Enabled' : '🔴 Disabled'}
         </button>
       </div>
 
-      {snort?.enabled ? (
-        <>
-          <div style={styles.snortStats}>
-            <div style={styles.snortCard}>
-              <span style={styles.snortLabel}>Status</span>
-              <span style={{...styles.snortValue, color: COLORS.success}}>Connected</span>
-            </div>
-            <div style={styles.snortCard}>
-              <span style={styles.snortLabel}>Rules Loaded</span>
-              <span style={styles.snortValue}>{snort?.rules_loaded || 'N/A'}</span>
-            </div>
-            <div style={styles.snortCard}>
-              <span style={styles.snortLabel}>Alerts</span>
-              <span style={styles.snortValue}>{snort?.alerts || 0}</span>
-            </div>
-            <div style={styles.snortCard}>
-              <span style={styles.snortLabel}>Dropped</span>
-              <span style={styles.snortValue}>{snort?.dropped || 0}</span>
-            </div>
-          </div>
-          <div style={styles.snortInfo}>
-            <p>📡 Snort is running and monitoring network traffic for intrusion detection.</p>
-          </div>
-        </>
-      ) : (
+      {/* Status Cards */}
+      <div style={styles.snortStats}>
+        <div style={styles.snortCard}>
+          <span style={styles.snortLabel}>Status</span>
+          <span style={{...styles.snortValue, color: getIDSStatusColor(snort?.status)}}>
+            {snort?.status?.toUpperCase() || 'UNKNOWN'}
+          </span>
+        </div>
+        <div style={styles.snortCard}>
+          <span style={styles.snortLabel}>Engine</span>
+          <span style={styles.snortValue}>{snort?.engine || 'none'}</span>
+        </div>
+        <div style={styles.snortCard}>
+          <span style={styles.snortLabel}>Rules Loaded</span>
+          <span style={styles.snortValue}>{snort?.rules_loaded?.toLocaleString() || 0}</span>
+        </div>
+        <div style={styles.snortCard}>
+          <span style={styles.snortLabel}>IDS Alerts</span>
+          <span style={{...styles.snortValue, color: (snort?.alerts || 0) > 0 ? COLORS.danger : COLORS.success}}>
+            {snort?.alerts || 0}
+          </span>
+        </div>
+        <div style={styles.snortCard}>
+          <span style={styles.snortLabel}>Dropped</span>
+          <span style={styles.snortValue}>{snort?.dropped || 0}</span>
+        </div>
+      </div>
+
+      {/* Log file info */}
+      {snort?.log_file && (
+        <div style={{...styles.snortInfo, marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '8px'}}>
+          <span>📁</span>
+          <span>Tailing: <code style={styles.ipCode}>{snort.log_file}</code></span>
+          {snort?.last_update && (
+            <span style={{marginLeft: 'auto', fontSize: '11px', color: '#64748b'}}>
+              Updated: {new Date(snort.last_update).toLocaleTimeString()}
+            </span>
+          )}
+        </div>
+      )}
+
+      {/* IDS Alerts Table */}
+      <h3 style={styles.subTitle}>🚨 IDS Alerts ({snortAlerts.length})</h3>
+      {snortAlerts.length === 0 ? (
         <div style={styles.emptyState}>
-          <p>Click the button above to enable Snort IDS</p>
-          <p style={styles.snortDesc}>Snort provides additional intrusion detection capabilities beyond DDoS protection.</p>
+          {snort?.enabled
+            ? '✅ No IDS alerts — monitoring active'
+            : '🔴 IDS is disabled — click Enable to start monitoring'}
+        </div>
+      ) : (
+        <div style={{maxHeight: '500px', overflowY: 'auto', borderRadius: '12px'}}>
+          <table style={{width: '100%', borderCollapse: 'collapse', fontSize: '13px'}}>
+            <thead>
+              <tr style={{background: COLORS.darker, position: 'sticky', top: 0, zIndex: 1}}>
+                <th style={styles.th}>Time</th>
+                <th style={styles.th}>Severity</th>
+                <th style={styles.th}>Message</th>
+                <th style={styles.th}>Src IP</th>
+                <th style={styles.th}>Dst IP</th>
+                <th style={styles.th}>Proto</th>
+                <th style={styles.th}>Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              {snortAlerts.slice(-50).reverse().map((a, i) => {
+                const alreadyBlocked = blocked.some(b => b.ip === a.src_ip)
+                return (
+                  <tr key={i} style={{
+                    background: i % 2 === 0 ? COLORS.dark : COLORS.darker,
+                    borderLeft: `3px solid ${getIDSSeverityColor(a.severity)}`
+                  }}>
+                    <td style={styles.td}>{new Date(a.timestamp).toLocaleTimeString()}</td>
+                    <td style={styles.td}>
+                      <span style={{
+                        padding: '2px 8px', borderRadius: '6px', fontSize: '11px', fontWeight: '700',
+                        background: getIDSSeverityColor(a.severity) + '25',
+                        color: getIDSSeverityColor(a.severity)
+                      }}>
+                        {a.severity === 1 ? 'CRITICAL' : a.severity === 2 ? 'HIGH' : 'MEDIUM'}
+                      </span>
+                    </td>
+                    <td style={{...styles.td, maxWidth: '300px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap'}}>
+                      {a.msg || a.classification || 'Unknown'}
+                    </td>
+                    <td style={styles.td}><code style={{fontSize: '12px', color: '#e2e8f0'}}>{a.src_ip}:{a.src_port}</code></td>
+                    <td style={styles.td}><code style={{fontSize: '12px', color: '#94a3b8'}}>{a.dst_ip}:{a.dst_port}</code></td>
+                    <td style={styles.td}><span style={{color: COLORS.primary}}>{a.protocol}</span></td>
+                    <td style={styles.td}>
+                      {a.src_ip && !alreadyBlocked ? (
+                        <button
+                          onClick={() => blockFromAlert(a.src_ip, `IDS: ${a.msg || a.classification}`)}
+                          disabled={blockingIPs.has(a.src_ip)}
+                          style={{...styles.blockBtnSm, padding: '3px 8px', fontSize: '11px'}}
+                        >
+                          {blockingIPs.has(a.src_ip) ? '⏳' : '🚫'}
+                        </button>
+                      ) : a.src_ip && alreadyBlocked ? (
+                        <span style={{...styles.blockedBadge, fontSize: '10px', padding: '2px 6px'}}>✅</span>
+                      ) : null}
+                    </td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
         </div>
       )}
     </div>
   )
 
-  const renderDetection = () => (
-    <div style={styles.section}>
-      <h2 style={styles.sectionTitle}>🔍 Detection Engine</h2>
-      <div style={styles.detectionGrid}>
-        <div style={styles.detectionCard}>
-          <div style={styles.detectionIcon}>📊</div>
-          <span style={styles.detectionLabel}>Total Alerts</span>
-          <span style={styles.detectionValue}>{detection?.totalAlerts || 0}</span>
-        </div>
-        <div style={styles.detectionCard}>
-          <div style={styles.detectionIcon}>🌊</div>
-          <span style={styles.detectionLabel}>SYN Rate</span>
-          <span style={styles.detectionValue}>{detection?.synRate?.toFixed(2) || 0}/s</span>
-        </div>
-        <div style={styles.detectionCard}>
-          <div style={styles.detectionIcon}>🌊</div>
-          <span style={styles.detectionLabel}>UDP Rate</span>
-          <span style={styles.detectionValue}>{detection?.udpRate?.toFixed(2) || 0}/s</span>
-        </div>
-        <div style={styles.detectionCard}>
-          <div style={styles.detectionIcon}>🌊</div>
-          <span style={styles.detectionLabel}>ICMP Rate</span>
-          <span style={styles.detectionValue}>{detection?.icmpRate?.toFixed(2) || 0}/s</span>
-        </div>
-      </div>
-    </div>
-  )
 
   const renderSystem = () => (
     <div style={styles.section}>
@@ -671,7 +788,6 @@ function App() {
           { id: 'alerts', icon: '🚨', label: 'Alerts', badge: alerts.length },
           { id: 'mitigation', icon: '🛡️', label: 'Mitigation', badge: blocked.length },
           { id: 'snort', icon: '🦅', label: 'Snort IDS' },
-          { id: 'detection', icon: '🔍', label: 'Detection' },
           { id: 'system', icon: '💻', label: 'System' }
         ].map(tab => (
           <button
@@ -697,7 +813,6 @@ function App() {
         {activeTab === 'alerts' && renderAlerts()}
         {activeTab === 'mitigation' && renderMitigation()}
         {activeTab === 'snort' && renderSnort()}
-        {activeTab === 'detection' && renderDetection()}
         {activeTab === 'system' && renderSystem()}
       </div>
 
@@ -865,6 +980,16 @@ const styles = {
     fontFamily: "'JetBrains Mono', 'Fira Code', monospace",
     fontSize: '13px', fontWeight: '600', color: '#e2e8f0',
     background: 'rgba(255,255,255,0.06)', padding: '2px 8px', borderRadius: '4px'
+  },
+  // Table styles for IDS alerts
+  th: {
+    padding: '10px 12px', textAlign: 'left', fontSize: '11px', fontWeight: '700',
+    color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.5px',
+    borderBottom: '1px solid #334155'
+  },
+  td: {
+    padding: '8px 12px', color: '#e2e8f0', borderBottom: '1px solid #1e293b',
+    verticalAlign: 'middle'
   }
 }
 

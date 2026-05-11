@@ -27,7 +27,7 @@ fi
 
 # 2. Build Go binary
 echo -e "${YELLOW}[2/4] Building sensor binary...${NC}"
-go build -o bin/sensor ./cmd/sensor
+go build -buildvcs=false -o bin/sensor ./cmd/sensor
 echo -e "${GREEN}[✓] bin/sensor built${NC}"
 
 # 3. Install Node dependencies

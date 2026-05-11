@@ -3,405 +3,417 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ZeroFlood - Documentation</title>
-    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🛡️</text></svg>">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <title>ZeroFlood | Official Documentation</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
     <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        
         :root {
-            --bg-primary: #0c0c0f;
-            --bg-sidebar: #111113;
-            --bg-card: #16161a;
-            --border: #27272a;
-            --text-primary: #fafafa;
-            --text-secondary: #a1a1aa;
-            --text-muted: #71717a;
-            --accent: #6366f1;
-            --accent-hover: #818cf8;
+            --bg-dark: #0f172a;
+            --bg-darker: #0b0f19;
+            --primary: #3b82f6;
+            --primary-glow: rgba(59, 130, 246, 0.5);
+            --secondary: #10b981;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --border: rgba(255, 255, 255, 0.1);
         }
-        
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
         body {
-            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-            background: var(--bg-primary);
-            color: var(--text-secondary);
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-darker);
+            color: var(--text-main);
             line-height: 1.7;
-            min-height: 100vh;
+            overflow-x: hidden;
         }
-        
-        /* Layout */
-        .app {
-            display: flex;
-            min-height: 100vh;
-        }
-        
-        /* Sidebar */
-        .sidebar {
-            width: 240px;
-            background: var(--bg-sidebar);
-            border-right: 1px solid var(--border);
-            padding: 32px 20px;
+
+        /* Top Header & Hamburger */
+        .top-bar {
             position: fixed;
-            height: 100vh;
-            overflow-y: auto;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 60px;
+            background: rgba(11, 15, 25, 0.8);
+            backdrop-filter: blur(10px);
+            border-bottom: 1px solid var(--border);
             display: flex;
-            flex-direction: column;
+            align-items: center;
+            padding: 0 20px;
+            z-index: 50;
         }
-        
-        .logo {
-            font-size: 20px;
-            font-weight: 700;
-            margin-bottom: 40px;
-            padding: 0 8px;
-            color: var(--text-primary);
-            letter-spacing: -0.5px;
+
+        .menu-toggle {
+            background: transparent;
+            border: none;
+            color: var(--text-main);
+            font-size: 24px;
+            cursor: pointer;
+            margin-right: 15px;
+            padding: 5px;
+            transition: color 0.3s ease;
         }
-        .logo span { 
-            color: var(--accent); 
+
+        .menu-toggle:hover {
+            color: var(--primary);
         }
-        
-        .nav-item {
+
+        .top-logo {
+            font-weight: 800;
+            font-size: 18px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        /* Sidebar Styling (Hidden by default) */
+        nav {
+            width: 280px;
+            height: 100vh;
+            position: fixed;
+            top: 0;
+            left: -280px; /* Hidden */
+            background: rgba(15, 23, 42, 0.95);
+            backdrop-filter: blur(20px);
+            border-right: 1px solid var(--border);
+            padding: 80px 20px 30px;
+            overflow-y: auto;
+            z-index: 40;
+            transition: left 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: 5px 0 25px rgba(0,0,0,0.5);
+        }
+
+        nav.open {
+            left: 0;
+        }
+
+        nav ul {
+            list-style: none;
+        }
+
+        nav li {
+            margin-bottom: 10px;
+        }
+
+        nav a {
+            text-decoration: none;
+            color: var(--text-muted);
+            font-size: 15px;
+            font-weight: 600;
             display: flex;
             align-items: center;
             gap: 10px;
-            padding: 10px 12px;
-            color: var(--text-muted);
-            text-decoration: none;
+            padding: 12px 15px;
             border-radius: 8px;
-            font-size: 13px;
-            font-weight: 500;
-            margin-bottom: 2px;
-            transition: all 0.15s ease;
+            transition: all 0.3s ease;
         }
-        .nav-item:hover { 
-            background: rgba(255,255,255,0.04); 
-            color: var(--text-secondary); 
+
+        nav a:hover, nav a.active {
+            background: rgba(59, 130, 246, 0.1);
+            color: var(--primary);
+            border-left: 3px solid var(--primary);
         }
-        .nav-item.active { 
-            background: var(--accent);
-            color: #fff; 
-            box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
-        }
-        
-        .nav-icon {
-            width: 18px;
-            text-align: center;
-            font-size: 14px;
-            opacity: 0.8;
-        }
-        
-        .sidebar-footer {
-            margin-top: auto;
-            padding-top: 24px;
-            border-top: 1px solid var(--border);
-        }
-        
-        .version {
-            font-size: 11px;
-            color: var(--text-muted);
-            text-align: center;
-            font-weight: 500;
-            letter-spacing: 0.5px;
-        }
-        
-        /* Main Content */
-        .main {
-            flex: 1;
-            margin-left: 240px;
-            padding: 48px;
-            display: flex;
-            justify-content: center;
-        }
-        
-        .content {
+
+        /* Backdrop overlay */
+        .backdrop {
+            position: fixed;
+            top: 0;
+            left: 0;
             width: 100%;
-            max-width: 720px;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            backdrop-filter: blur(2px);
+            z-index: 30;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s ease;
         }
-        
-        /* Markdown Styles */
-        .md h1 {
-            font-size: 22px;
-            font-weight: 700;
-            color: var(--text-primary);
-            margin: 0 0 20px 0;
-            padding-bottom: 16px;
+
+        .backdrop.open {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        /* Main Content Centered */
+        main {
+            margin: 0 auto;
+            padding: 100px 30px 60px;
+            max-width: 800px;
+            width: 100%;
+            transition: transform 0.3s ease;
+        }
+
+        h1 {
+            font-size: 46px;
+            font-weight: 800;
+            margin-bottom: 15px;
+            background: linear-gradient(to right, #fff, #94a3b8);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            text-align: center;
+        }
+
+        .subtitle-main {
+            text-align: center;
+            font-size: 18px;
+            margin-bottom: 50px;
+        }
+
+        h2 {
+            font-size: 28px;
+            margin: 50px 0 20px 0;
+            padding-bottom: 10px;
             border-bottom: 1px solid var(--border);
+            color: #fff;
         }
-        
-        .md h2 {
-            font-size: 17px;
-            font-weight: 600;
-            color: var(--text-primary);
-            margin: 28px 0 12px 0;
+
+        h3 {
+            font-size: 20px;
+            margin: 30px 0 15px 0;
+            color: #e2e8f0;
         }
-        
-        .md h3 {
-            font-size: 15px;
-            font-weight: 600;
-            color: var(--text-primary);
-            margin: 24px 0 10px 0;
+
+        p {
+            color: var(--text-muted);
+            margin-bottom: 20px;
+            font-size: 16px;
         }
-        
-        .md h4 {
-            font-size: 14px;
-            font-weight: 600;
-            color: var(--text-primary);
-            margin: 20px 0 8px 0;
+
+        .card {
+            background: var(--bg-dark);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 25px;
+            margin-bottom: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            transition: transform 0.3s ease, border-color 0.3s ease;
         }
-        
-        .md p {
-            color: var(--text-secondary);
-            margin: 14px 0;
-            font-size: 15px;
+
+        .card:hover {
+            transform: translateY(-3px);
+            border-color: var(--primary-glow);
         }
-        
-        .md a {
-            color: var(--accent);
-            text-decoration: none;
-            font-weight: 500;
-        }
-        .md a:hover { color: var(--accent-hover); }
-        
-        .md strong { 
-            color: var(--text-primary); 
-            font-weight: 600;
-        }
-        
-        .md code {
+
+        code {
             font-family: 'JetBrains Mono', monospace;
-            background: rgba(255,255,255,0.06);
-            padding: 2px 6px;
+            background: rgba(0,0,0,0.3);
+            color: #cbd5e1;
+            padding: 3px 6px;
             border-radius: 4px;
-            font-size: 12px;
-            color: #22d3ee;
-            font-weight: 400;
-        }
-        
-        .md pre {
-            background: var(--bg-card);
-            padding: 16px;
-            border-radius: 10px;
-            overflow-x: auto;
-            margin: 16px 0;
-            border: 1px solid var(--border);
-            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
-        }
-        
-        .md pre code {
-            background: none;
-            padding: 0;
-            font-size: 12px;
-            line-height: 1.5;
-            color: #d4d4d8;
-        }
-        
-        .md ul, .md ol {
-            margin: 14px 0;
-            padding-left: 20px;
-            color: var(--text-secondary);
-        }
-        
-        .md li { 
-            margin: 6px 0;
             font-size: 14px;
         }
-        
-        .md li::marker { color: var(--accent); }
-        
-        .md table {
-            width: 100%;
-            border-collapse: collapse;
-            margin: 16px 0;
+
+        pre {
+            background: #050505;
+            padding: 20px;
+            border-radius: 12px;
             border: 1px solid var(--border);
-            border-radius: 8px;
-            overflow: hidden;
+            overflow-x: auto;
+            margin-bottom: 25px;
         }
-        
-        .md th {
-            background: var(--bg-card);
-            padding: 12px 14px;
-            text-align: left;
-            font-weight: 600;
-            font-size: 12.5px;
-            color: var(--text-primary);
-            border-bottom: 1px solid var(--border);
+
+        pre code {
+            background: transparent;
+            padding: 0;
+            color: #38bdf8;
+            font-size: 14px;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 800;
+            letter-spacing: 0.5px;
             text-transform: uppercase;
-            letter-spacing: 0.3px;
         }
-        
-        .md td {
-            padding: 11px 14px;
-            border-bottom: 1px solid var(--border);
-            font-size: 13px;
+
+        .badge.green { background: rgba(16, 185, 129, 0.2); color: #10b981; }
+        .badge.blue { background: rgba(59, 130, 246, 0.2); color: #3b82f6; }
+        .badge.red { background: rgba(239, 68, 68, 0.2); color: #ef4444; }
+
+        .feature-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-top: 30px;
         }
-        
-        .md tr:last-child td { border-bottom: none; }
-        
-        .md tr:hover td { background: rgba(255,255,255,0.02); }
-        
-        .md hr {
-            border: none;
-            height: 1px;
-            background: var(--border);
-            margin: 32px 0;
-        }
-        
-        .md blockquote {
-            border-left: 3px solid var(--accent);
-            padding-left: 16px;
-            margin: 16px 0;
-            color: var(--text-muted);
-            font-style: italic;
-        }
-        
-        .loading {
-            color: var(--text-muted);
-            font-size: 15px;
-        }
-        
-        @media (max-width: 900px) {
-            .sidebar { width: 200px; }
-            .main { margin-left: 200px; padding: 32px; }
-        }
-        
-        @media (max-width: 640px) {
-            .sidebar { display: none; }
-            .main { margin-left: 0; padding: 24px; }
-        }
+
+        /* Smooth scrolling */
+        html { scroll-behavior: smooth; }
     </style>
 </head>
 <body>
-    <div class="app">
-        <nav class="sidebar" id="sidebar">
-            <div class="logo">Zero<span>Flood</span></div>
-            <div id="nav-container"></div>
-            <div class="sidebar-footer">
-                <div class="version">v1.0.0</div>
-            </div>
-        </nav>
-        
-        <main class="main">
-            <div class="content">
-                <div class="md" id="content"><span class="loading">Loading...</span></div>
-            </div>
-        </main>
+
+    <div class="top-bar">
+        <button class="menu-toggle" onclick="toggleNav()">☰</button>
+        <div class="top-logo">🛡️ ZeroFlood Docs</div>
     </div>
-    
+
+    <div class="backdrop" id="backdrop" onclick="toggleNav()"></div>
+
+    <nav id="sidenav">
+        <ul>
+            <li><a href="#overview" class="active">🌟 Overview</a></li>
+            <li><a href="#setup">🚀 Setup & Clone</a></li>
+            <li><a href="#dashboard">📊 Pro Dashboard</a></li>
+            <li><a href="#ids">🦅 Suricata IDS</a></li>
+            <li><a href="#mitigation">🚫 Auto-Mitigation</a></li>
+            <li><a href="#troubleshooting">🔧 Troubleshooting</a></li>
+        </ul>
+    </nav>
+
+    <main>
+        <section id="overview">
+            <div style="text-align: center; margin-bottom: 20px;">
+                <span class="badge blue">Version 2.0</span>
+            </div>
+            <h1>ZeroFlood Documentation</h1>
+            <p class="subtitle-main">Production-grade DDoS mitigation & IDS monitoring system.</p>
+            
+            <div class="feature-grid">
+                <div class="card">
+                    <h3>⚡ Real-Time Capture</h3>
+                    <p>Uses raw <code>libpcap</code> to intercept traffic instantly before it hits the application layer, tracking PPS, bandwidth, and protocol distributions.</p>
+                </div>
+                <div class="card">
+                    <h3>🛡️ IPv4 & IPv6 Mitigation</h3>
+                    <p>Dynamically blocks malicious actors across both IP stacks using <code>iptables</code> and <code>ip6tables</code> on the INPUT and FORWARD chains.</p>
+                </div>
+            </div>
+        </section>
+
+        <section id="setup">
+            <h2>🚀 Setup & Clone</h2>
+            <p>ZeroFlood requires <strong>root privileges (sudo)</strong> to attach to network interfaces and manipulate the system firewall safely.</p>
+            
+            <div class="card">
+                <h3>1. Clone the Repository</h3>
+                <pre><code>git clone https://github.com/0xStr1k3r/ZeroFlood.git
+cd ZeroFlood</code></pre>
+            </div>
+
+            <div class="card">
+                <h3>2. Run the Setup Script</h3>
+                <p>This will install `libpcap-dev` and securely build the Go binaries.</p>
+                <pre><code>chmod +x setup.sh
+./setup.sh</code></pre>
+            </div>
+
+            <div class="card">
+                <h3>3. Start ZeroFlood (Requires Sudo)</h3>
+                <p>You MUST run the start script with <code>sudo</code> so that ZeroFlood can inject firewall rules and capture raw packets.</p>
+                <pre><code>chmod +x start.sh
+sudo ./start.sh</code></pre>
+                <p>Once running, your Pro Dashboard will be available at <strong>http://localhost:3000</strong>.</p>
+            </div>
+        </section>
+
+        <section id="dashboard">
+            <h2>📊 The Pro Dashboard</h2>
+            <p>The Overview interface acts as a unified Security Operations Center (SOC).</p>
+            
+            <div class="card">
+                <h3>System Threat Level</h3>
+                <p>A dynamic gauge continuously analyzes your alert queue and packet metrics. It automatically shifts between <span class="badge green">SAFE</span>, <span class="badge" style="background:#ca8a0430;color:#eab308">ELEVATED</span>, and <span class="badge red">CRITICAL</span> states depending on anomalous spikes.</p>
+            </div>
+            
+            <div class="card">
+                <h3>Protocol Breakdown</h3>
+                <p>Visualizes your network composition in real-time, tracking <strong>TCP</strong>, <strong>UDP</strong>, and <strong>ICMP</strong> ratios using dynamic progression bars to easily spot protocol floods.</p>
+            </div>
+        </section>
+
+        <section id="ids">
+            <h2>🦅 Suricata / Snort IDS Integration</h2>
+            <p>ZeroFlood natively bridges with Suricata or Snort to provide deep packet inspection capabilities alongside volumetric DDoS defense.</p>
+            
+            <div class="card">
+                <h3>How It Works</h3>
+                <p>When you click <strong>"Enable Snort"</strong> from the GUI, ZeroFlood physically spawns the Suricata daemon (<code>suricata -D</code>) on your live interface and tails the <code>eve.json</code> log securely.</p>
+                
+                <h3>Smart Deduplication</h3>
+                <p>Alerts from the exact same IP and rule are aggregated to prevent UI spam, allowing you to focus on the actual threats.</p>
+            </div>
+        </section>
+
+        <section id="mitigation">
+            <h2>🚫 Auto-Mitigation Engine</h2>
+            <p>The Auto-Block feature is <span class="badge green">OFF by Default</span> to prevent accidental lockouts.</p>
+
+            <div class="card">
+                <h3>Enabling Auto-Block</h3>
+                <p>Toggle Auto-Block via the <strong>Alerts</strong> tab. When enabled, any IP flagged with a "High" or "Critical" severity (from either volumetric detectors or Suricata IDS) is instantly firewalled.</p>
+            </div>
+
+            <div class="card">
+                <h3>Block Persistence</h3>
+                <p>Blocked traffic is completely dropped at the kernel level (INPUT/FORWARD chains), meaning even Docker containers and bridged VMs are protected. ZeroFlood will quietly drop further alerts from blocked IPs to keep your dashboard clean.</p>
+            </div>
+        </section>
+
+        <section id="troubleshooting">
+            <h2>🔧 Troubleshooting</h2>
+            
+            <div class="card">
+                <h3>Exit Status 128 (Git Error)</h3>
+                <p>If you see <code>error obtaining VCS status: exit status 128</code>, ensure you are using the latest <code>setup.sh</code> which automatically bypasses VCS stamping when building as root.</p>
+            </div>
+
+            <div class="card">
+                <h3>No Traffic Showing</h3>
+                <p>Verify your interface. ZeroFlood auto-detects the interface bound to your default route (e.g. <code>wlan0</code> or <code>eth0</code>). If it picks the wrong one, force it via:</p>
+                <pre><code>sudo ./start.sh eth0</code></pre>
+            </div>
+        </section>
+        
+        <br><br><br>
+    </main>
+
     <script>
-        const navItems = [
-            { file: 'docs/home.md', icon: '⌂', label: 'Home' },
-            { file: 'docs/installation.md', icon: '↓', label: 'Installation' },
-            { file: 'docs/quickstart.md', icon: '▶', label: 'Quick Start' },
-            { file: 'docs/architecture.md', icon: '◈', label: 'Architecture' },
-            { file: 'docs/detection.md', icon: '◎', label: 'Detection' },
-            { file: 'docs/mitigation.md', icon: '◆', label: 'Mitigation' },
-            { file: 'docs/llm.md', icon: '◇', label: 'LLM' },
-            { file: 'docs/api.md', icon: '⇄', label: 'API' },
-            { file: 'docs/configuration.md', icon: '☰', label: 'Config' },
-            { file: 'docs/troubleshooting.md', icon: '⚠', label: 'Troubleshoot' }
-        ];
+        // Sidebar Toggle Logic
+        const sidenav = document.getElementById('sidenav');
+        const backdrop = document.getElementById('backdrop');
 
-        const navContainer = document.getElementById('nav-container');
-        const content = document.getElementById('content');
+        function toggleNav() {
+            sidenav.classList.toggle('open');
+            backdrop.classList.toggle('open');
+        }
 
-        // Build nav
-        navItems.forEach((item, i) => {
-            const a = document.createElement('a');
-            a.href = '#' + item.file;
-            a.className = 'nav-item' + (i === 0 ? ' active' : '');
-            a.innerHTML = `<span class="nav-icon">${item.icon}</span>${item.label}`;
-            a.onclick = (e) => {
-                e.preventDefault();
-                loadFile(item.file);
-                document.querySelectorAll('.nav-item').forEach(x => x.className = 'nav-item');
-                a.className = 'nav-item active';
-            };
-            navContainer.appendChild(a);
+        // Auto-close sidebar when clicking a link (on mobile)
+        document.querySelectorAll('nav a').forEach(link => {
+            link.addEventListener('click', () => {
+                if(window.innerWidth < 1200) {
+                    toggleNav();
+                }
+            });
         });
 
-        function parseMd(text) {
-            let html = text
-                .replace(/&/g, '&amp;')
-                .replace(/</g, '&lt;')
-                .replace(/>/g, '&gt;');
-            
-            html = html.replace(/^#### (.*$)/gm, '<h4>$1</h4>');
-            html = html.replace(/^### (.*$)/gm, '<h3>$1</h3>');
-            html = html.replace(/^## (.*$)/gm, '<h2>$1</h2>');
-            html = html.replace(/^# (.*$)/gm, '<h1>$1</h1>');
-            
-            html = html.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
-            html = html.replace(/\*(.*?)\*/g, '<em>$1</em>');
-            
-            html = html.replace(/```(\w+)?\n([\s\S]*?)```/g, '<pre><code>$2</code></pre>');
-            html = html.replace(/`([^`]+)`/g, '<code>$1</code>');
-            
-            html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2">$1</a>');
-            html = html.replace(/^---$/gm, '<hr>');
-            
-            // Tables - filter out separator lines
-            const lines = html.split('\n');
-            let inTable = false;
-            let result = [];
-            
-            for (let i = 0; i < lines.length; i++) {
-                const line = lines[i];
-                // Skip separator lines like |---|---|---| or | --- | --- |
-                // Match lines that have only dashes, colons, spaces, and pipes
-                if (line.trim().match(/^[\|\s\-:]+$/)) {
-                    continue;
+        // Scroll spy script for sidebar highlighting
+        const sections = document.querySelectorAll("section");
+        const navLi = document.querySelectorAll("nav ul li a");
+        
+        window.addEventListener('scroll', () => {
+            let current = "";
+            sections.forEach((section) => {
+                const sectionTop = section.offsetTop;
+                if (pageYOffset >= sectionTop - 100) {
+                    current = section.getAttribute("id");
                 }
-                
-                if (line.includes('|')) {
-                    if (!inTable) {
-                        inTable = true;
-                        result.push('<table>');
-                        const heads = line.split('|').filter(c => c.trim());
-                        result.push('<thead><tr>');
-                        heads.forEach(h => result.push('<th>' + h.trim() + '</th>'));
-                        result.push('</tr></thead><tbody>');
-                    } else {
-                        const cells = line.split('|').filter(c => c.trim());
-                        result.push('<tr>');
-                        cells.forEach(c => result.push('<td>' + c.trim() + '</td>'));
-                        result.push('</tr>');
-                    }
-                } else {
-                    if (inTable) {
-                        result.push('</tbody></table>');
-                        inTable = false;
-                    }
-                    result.push(line);
+            });
+            
+            navLi.forEach((a) => {
+                a.classList.remove("active");
+                if (a.getAttribute("href") == "#" + current) {
+                    a.classList.add("active");
                 }
-            }
-            if (inTable) result.push('</tbody></table>');
-            html = result.join('\n');
-            
-            html = html.replace(/^[\-\*] (.*$)/gm, '<li>$1</li>');
-            html = html.replace(/(<li>.*<\/li>\n?)+/g, '<ul>$&</ul>');
-            
-            html = html.split('\n\n').map(p => {
-                p = p.trim();
-                if (!p) return '';
-                if (p.startsWith('<')) return p;
-                return '<p>' + p.replace(/\n/g, '<br>') + '</p>';
-            }).join('\n');
-            
-            html = html.replace(/<p><\/p>/g, '');
-            
-            return html;
-        }
-
-        function loadFile(file) {
-            content.innerHTML = '<span class="loading">Loading...</span>';
-            fetch(file)
-                .then(r => r.text())
-                .then(t => content.innerHTML = parseMd(t))
-                .catch(e => content.innerHTML = '<p>Error: ' + e.message + '</p>');
-        }
-
-        const hash = window.location.hash.slice(1);
-        loadFile(hash || 'home.md');
+            });
+        });
     </script>
 </body>
 </html>
